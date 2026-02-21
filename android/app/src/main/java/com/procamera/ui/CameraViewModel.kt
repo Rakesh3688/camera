@@ -126,7 +126,9 @@ class CameraViewModel(
                 try {
                     val settingsTag = "ISO: ${_uiState.value.iso} | 1/${(1_000_000_000.0 / _uiState.value.shutterSpeed).toInt()}s | $targetFps FPS"
                     // setup(file, width, height, captureFps, playbackFps, bitrate, settingsTag)
-                    val recordingSurface = recordingEngine.setup(file, size.width, size.height, targetFps, 240, 50_000_000, settingsTag)
+                    // Set playbackFps to 30 for automatic 8x/4x slow motion in the final file
+                    val playbackFps = 30
+                    val recordingSurface = recordingEngine.setup(file, size.width, size.height, targetFps, playbackFps, 50_000_000, settingsTag)
                     surfaces.add(recordingSurface)
                 } catch (e: Exception) {
                     Log.e("CameraViewModel", "Recorder setup failed: $e")

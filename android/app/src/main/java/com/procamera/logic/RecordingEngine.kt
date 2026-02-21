@@ -115,12 +115,10 @@ class RecordingEngine {
                     encodedData.position(bufferInfo.offset)
                     encodedData.limit(bufferInfo.offset + bufferInfo.size)
                     
-                    // FORCE 240 FPS in Metadata and Timing
+                    // Slow Motion Timing: Space frames according to the target playback rate (e.g. 30fps)
                     if (startTimeUs == -1L) startTimeUs = bufferInfo.presentationTimeUs
                     
-                    // Using 240 as the timing base so property viewer shows "240 fps"
-                    val targetPropertyFps = 240 
-                    val frameDurationUs = 1_000_000L / targetPropertyFps
+                    val frameDurationUs = 1_000_000L / playbackFps
                     bufferInfo.presentationTimeUs = startTimeUs + (frameCount * frameDurationUs)
 
                     try {
