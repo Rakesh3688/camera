@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.animation.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import android.view.SurfaceView
 import android.view.SurfaceHolder
 import java.io.File
@@ -190,6 +192,26 @@ fun ProCameraScreen(viewModel: CameraViewModel) {
                 metadata = uiState.latestMetadata,
                 onClose = { viewModel.togglePlayer(false) }
             )
+        }
+
+        // Saved to Gallery Confirmation Notification
+        AnimatedVisibility(
+            visible = uiState.showSavedConfirmation,
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFF2E7D32), RoundedCornerShape(24.dp))
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✓", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Saved to Gallery!", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

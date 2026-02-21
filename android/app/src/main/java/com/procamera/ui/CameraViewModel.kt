@@ -33,7 +33,8 @@ data class CameraUiState(
     val currentMessage: String = "",
     val latestVideoUri: android.net.Uri? = null,
     val latestMetadata: com.procamera.models.VideoMetadata? = null,
-    val showPlayer: Boolean = false
+    val showPlayer: Boolean = false,
+    val showSavedConfirmation: Boolean = false
 )
 
 class CameraViewModel(
@@ -257,12 +258,15 @@ class CameraViewModel(
                     } else {
                         MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null) { _, uri ->
                             viewModelScope.launch(Dispatchers.Main) {
+                                android.widget.Toast.makeText(context, "Saved to Gallery!", android.widget.Toast.LENGTH_SHORT).show()
                                 _uiState.value = _uiState.value.copy(
                                     isSaving = false, 
-                                    currentMessage = "Saved to Gallery!",
-                                    latestVideoUri = uri
+                                    currentMessage = "Captured!",
+                                    latestVideoUri = uri,
+                                    showSavedConfirmation = true
                                 )
                                 parseMetadata(jsonResponse)
+                                resetSavedConfirmation()
                             }
                         }
                     }
@@ -346,12 +350,15 @@ class CameraViewModel(
                 file.delete() // Clean up video cache
                 
                 viewModelScope.launch(Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, "Saved to Gallery!", android.widget.Toast.LENGTH_SHORT).show()
                     _uiState.value = _uiState.value.copy(
                         isSaving = false, 
-                        currentMessage = "Saved to Gallery!",
-                        latestVideoUri = uri
+                        currentMessage = "Captured!",
+                        latestVideoUri = uri,
+                        showSavedConfirmation = true
                     )
                     parseMetadata(jsonContent)
+                    resetSavedConfirmation()
                 }
             } catch (e: Exception) {
                 Log.e("CameraViewModel", "MediaStore save error", e)
@@ -378,6 +385,13 @@ class CameraViewModel(
 
     fun togglePlayer(show: Boolean) {
         _uiState.value = _uiState.value.copy(showPlayer = show)
+    }
+
+    private fun resetSavedConfirmation() {
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(3000)
+            _uiState.value = _uiState.value.copy(showSavedConfirmation = false)
+        }
     }
 
     private fun saveJsonToPublicStorage(filename: String, content: String) {
