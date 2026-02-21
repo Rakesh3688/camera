@@ -342,16 +342,19 @@ class CameraViewModel(
                     context.contentResolver.update(uri, values, null, null)
                     
                     // Also save the JSON and SRT files to public location
-                    saveJsonToPublicStorage(file.nameWithoutExtension + "_metadata.json", jsonContent)
-                    
-                    // Construct SRT content for public storage
-                    val srtName = file.nameWithoutExtension + ".srt"
-                    val sProject = jsonContent.let { 
-                        val obj = org.json.JSONObject(it)
-                        "ISO: ${obj.getInt("iso")} | SHUTTER: ${obj.getString("shutter_speed_formatted")} | ${obj.getInt("fps")} FPS | ${obj.getString("resolution")}"
+                    try {
+                        saveJsonToPublicStorage(file.nameWithoutExtension + "_metadata.json", jsonContent)
+                        
+                        val srtName = file.nameWithoutExtension + ".srt"
+                        val sProject = jsonContent.let { 
+                            val obj = org.json.JSONObject(it)
+                            "ISO: ${obj.getInt("iso")} | SHUTTER: ${obj.getString("shutter_speed_formatted")} | ${obj.getInt("fps")} FPS | ${obj.getString("resolution")}"
+                        }
+                        val srtContent = "1\n00:00:00,000 --> 00:59:59,000\n$sProject"
+                        saveJsonToPublicStorage(srtName, srtContent)
+                    } catch (e: Exception) {
+                        Log.e("CameraViewModel", "Sidecar save failed but video ok: $e")
                     }
-                    val srtContent = "1\n00:00:00,000 --> 00:59:59,000\n$sProject"
-                    saveJsonToPublicStorage(srtName, srtContent) // Reusing the same function for .srt
                     
                     file.delete() // Clean up video cache
                     
@@ -408,8 +411,8 @@ class CameraViewModel(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, filename)
-                put(MediaStore.Downloads.MIME_TYPE, "application/json")
-                put(MediaStore.Downloads.RELATIVE_PATH, "DCIM/ProCamera")
+                put(MediaStore.Downloads.MIME_TYPE, if (filename.endsWith(".srt")) "text/plain" else "application/json")
+                put(MediaStore.Downloads.RELATIVE_PATH, "Download/ProCamera")
             }
             val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             uri?.let {
