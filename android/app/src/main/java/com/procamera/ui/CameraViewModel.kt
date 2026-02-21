@@ -190,12 +190,12 @@ class CameraViewModel(
         
         // On Android 10+, we MUST use MediaStore for public folders, or getExternalFilesDir for private
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Internal app storage temporarily, then move to MediaStore? 
-            // Better: just use a file in cache and move it.
+            // Use cache then move to MediaStore
             videoFile = File(context.cacheDir, filename)
         } else {
-            val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-            val outputDir = File(moviesDir, "ProCamera").apply { if (!exists()) mkdirs() }
+            // Legacy: Save directly to DCIM for immediate gallery visibility
+            val dcimDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+            val outputDir = File(dcimDir, "ProCamera").apply { if (!exists()) mkdirs() }
             videoFile = File(outputDir, filename)
         }
 
@@ -313,7 +313,7 @@ class CameraViewModel(
         val values = ContentValues().apply {
             put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
             put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-            put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/ProCamera")
+            put(MediaStore.Video.Media.RELATIVE_PATH, "DCIM/ProCamera")
             put(MediaStore.Video.Media.IS_PENDING, 1)
         }
 
@@ -385,7 +385,7 @@ class CameraViewModel(
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, filename)
                 put(MediaStore.Downloads.MIME_TYPE, "application/json")
-                put(MediaStore.Downloads.RELATIVE_PATH, "Movies/ProCamera")
+                put(MediaStore.Downloads.RELATIVE_PATH, "DCIM/ProCamera")
             }
             val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             uri?.let {
