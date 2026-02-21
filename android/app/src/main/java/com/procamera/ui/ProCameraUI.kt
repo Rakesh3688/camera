@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -136,17 +138,51 @@ fun ProCameraScreen(viewModel: CameraViewModel) {
             }
             
             Spacer(Modifier.height(24.dp))
+            
+            // Record Row with Gallery Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Playback button (left of record button)
+                if (uiState.latestVideoUri != null) {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 24.dp)
+                            .size(50.dp)
+                            .background(Color.DarkGray, CircleShape)
+                            .clickable { viewModel.togglePlayer(true) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("PLAY", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
 
-            // Record Button
-            val context = LocalContext.current
-            Button(
-                onClick = { viewModel.toggleRecording() },
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (uiState.isRecording) Color.Red else Color.White
-                ),
-                modifier = Modifier.size(80.dp)
-            ) {}
+                // Record Button
+                Button(
+                    onClick = { viewModel.toggleRecording() },
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (uiState.isRecording) Color.Red else Color.White
+                    ),
+                    modifier = Modifier.size(80.dp)
+                ) {}
+                
+                // Add empty box for symmetry if latest video exists
+                if (uiState.latestVideoUri != null) {
+                    Spacer(Modifier.width(74.dp))
+                }
+            }
+        }
+
+        // Full Screen Video Player with Metadata Overlay
+        if (uiState.showPlayer && uiState.latestVideoUri != null) {
+            PlaybackScreen(
+                uri = uiState.latestVideoUri!!,
+                metadata = uiState.latestMetadata,
+                onClose = { viewModel.togglePlayer(false) }
+            )
         }
     }
 }
@@ -177,5 +213,67 @@ fun ManualDial(
             fontWeight = FontWeight.ExtraBold, 
             fontSize = 20.sp
         )
+    }
+}
+
+@Composable
+fun PlaybackScreen(
+    uri: android.net.Uri,
+    metadata: com.procamera.models.VideoMetadata?,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    val playbackEngine = remember { com.procamera.logic.PlaybackEngine(context) }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        // Video Player
+        AndroidView(
+            factory = { ctx ->
+                androidx.media3.ui.PlayerView(ctx).apply {
+                    useController = true
+                    playbackEngine.initializePlayer(this, uri)
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Metadata Overlay
+        if (metadata != null) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(24.dp)
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(12.dp)
+            ) {
+                Text("CAPTURE METADATA", color = Color.Yellow, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
+                MetadataItem("ISO", metadata.iso.toString())
+                MetadataItem("SHUTTER", metadata.shutterSpeed)
+                MetadataItem("RECORD FPS", metadata.actualFps.toString())
+                MetadataItem("RESOLUTION", metadata.resolution)
+                val date = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(metadata.timestamp))
+                MetadataItem("TIME", date)
+            }
+        }
+
+        // Close Button
+        IconButton(
+            onClick = { 
+                playbackEngine.release()
+                onClose() 
+            },
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+        ) {
+            Text("X", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
+        }
+    }
+}
+
+@Composable
+fun MetadataItem(label: String, value: String) {
+    Row {
+        Text("$label: ", color = Color.LightGray, fontSize = 12.sp)
+        Text(value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }

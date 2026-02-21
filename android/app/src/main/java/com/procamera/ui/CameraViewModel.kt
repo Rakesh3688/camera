@@ -30,7 +30,10 @@ data class CameraUiState(
     val fps: Int = 240,
     val isHighSpeedSupported: Boolean = false,
     val preferredSize: android.util.Size = android.util.Size(1280, 720),
-    val currentMessage: String = ""
+    val currentMessage: String = "",
+    val latestVideoUri: android.net.Uri? = null,
+    val latestMetadata: com.procamera.models.VideoMetadata? = null,
+    val showPlayer: Boolean = false
 )
 
 class CameraViewModel(
@@ -251,9 +254,14 @@ class CameraViewModel(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         saveToGalleryAndroidQ(file, jsonResponse)
                     } else {
-                        MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null) { _, _ ->
+                        MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null) { _, uri ->
                             viewModelScope.launch(Dispatchers.Main) {
-                                _uiState.value = _uiState.value.copy(isSaving = false, currentMessage = "Saved to Gallery!")
+                                _uiState.value = _uiState.value.copy(
+                                    isSaving = false, 
+                                    currentMessage = "Saved to Gallery!",
+                                    latestVideoUri = uri
+                                )
+                                parseMetadata(jsonResponse)
                             }
                         }
                     }
@@ -328,12 +336,38 @@ class CameraViewModel(
                 file.delete() // Clean up video cache
                 
                 viewModelScope.launch(Dispatchers.Main) {
-                    _uiState.value = _uiState.value.copy(isSaving = false, currentMessage = "Saved to Gallery!")
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false, 
+                        currentMessage = "Saved to Gallery!",
+                        latestVideoUri = uri
+                    )
+                    parseMetadata(jsonContent)
                 }
             } catch (e: Exception) {
                 Log.e("CameraViewModel", "MediaStore save error", e)
             }
         }
+    }
+
+    private fun parseMetadata(json: String) {
+        try {
+            val obj = org.json.JSONObject(json)
+            val metadata = com.procamera.models.VideoMetadata(
+                filename = obj.getString("filename"),
+                iso = obj.getInt("iso"),
+                shutterSpeed = obj.getString("shutter_speed_formatted"),
+                actualFps = obj.getInt("fps"),
+                resolution = obj.getString("resolution"),
+                timestamp = obj.getLong("timestamp")
+            )
+            _uiState.value = _uiState.value.copy(latestMetadata = metadata)
+        } catch (e: Exception) {
+            Log.e("CameraViewModel", "Metadata parse failed: $e")
+        }
+    }
+
+    fun togglePlayer(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showPlayer = show)
     }
 
     private fun saveJsonToPublicStorage(filename: String, content: String) {
