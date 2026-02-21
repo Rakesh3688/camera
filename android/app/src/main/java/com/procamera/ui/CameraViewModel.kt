@@ -39,7 +39,8 @@ class CameraViewModel(
     private val manualController: ManualController,
     private val recordingEngine: RecordingEngine,
     private val metadataWriter: SidecarMetadataWriter,
-    private val capabilityCheck: HardwareCapabilityCheck
+    private val capabilityCheck: HardwareCapabilityCheck,
+    private val api: com.procamera.api.ProCameraApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -254,6 +255,28 @@ class CameraViewModel(
                             viewModelScope.launch(Dispatchers.Main) {
                                 _uiState.value = _uiState.value.copy(isSaving = false, currentMessage = "Saved to Gallery!")
                             }
+                        }
+                    }
+
+                    // 4. Sync metadata to Cloud Backend
+                    viewModelScope.launch(Dispatchers.IO) {
+                        try {
+                            val metadata = com.procamera.models.VideoMetadata(
+                                filename = file.name,
+                                iso = _uiState.value.iso,
+                                shutterSpeed = "1/${(1_000_000_000.0 / _uiState.value.shutterSpeed).toInt()}",
+                                actualFps = _uiState.value.fps,
+                                resolution = "${size.width}x${size.height}"
+                            )
+                            Log.d("CameraViewModel", "Syncing metadata to backend: $metadata")
+                            val response = api.uploadMetadata(metadata)
+                            if (response.success) {
+                                withContext(Dispatchers.Main) {
+                                    _uiState.value = _uiState.value.copy(currentMessage = "Synced to Cloud!")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CameraViewModel", "Backend sync failed: $e")
                         }
                     }
                 } else {

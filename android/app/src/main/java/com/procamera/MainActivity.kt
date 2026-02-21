@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
         val recordingEngine = RecordingEngine()
         val sidecarWriter = SidecarMetadataWriter()
         val capabilityCheck = HardwareCapabilityCheck(this)
+        val api = com.procamera.api.NetworkModule.api
 
         viewModel = CameraViewModel(
             this,
@@ -37,7 +38,8 @@ class MainActivity : ComponentActivity() {
             manualController,
             recordingEngine,
             sidecarWriter,
-            capabilityCheck
+            capabilityCheck,
+            api
         )
 
         checkPermissions()
