@@ -243,13 +243,13 @@ class CameraViewModel(
                 
                 val file = currentVideoFile
                 if (file != null && file.exists() && file.length() > 0) {
-                    // Save sidecar metadata
+                    // 1. Generate local metadata JSON string
                     val size = _uiState.value.preferredSize
-                    metadataWriter.saveMetadata(file, _uiState.value.iso, _uiState.value.shutterSpeed, _uiState.value.fps, "${size.width}x${size.height}")
+                    val jsonResponse = metadataWriter.saveMetadata(file, _uiState.value.iso, _uiState.value.shutterSpeed, _uiState.value.fps, "${size.width}x${size.height}")
                     
-                    // Move to Gallery if on Android 10+
+                    // 2. Move to Gallery (and optionally the JSON too)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        saveToGalleryAndroidQ(file)
+                        saveToGalleryAndroidQ(file, jsonResponse)
                     } else {
                         MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null) { _, _ ->
                             viewModelScope.launch(Dispatchers.Main) {
@@ -300,7 +300,7 @@ class CameraViewModel(
         }
     }
 
-    private fun saveToGalleryAndroidQ(file: File) {
+    private fun saveToGalleryAndroidQ(file: File, jsonContent: String) {
         val values = ContentValues().apply {
             put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
             put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
@@ -321,13 +321,33 @@ class CameraViewModel(
                 values.clear()
                 values.put(MediaStore.Video.Media.IS_PENDING, 0)
                 context.contentResolver.update(uri, values, null, null)
-                file.delete() // Clean up cache
+                
+                // Also save the JSON file to Downloads/ProCamera or similar public location
+                saveJsonToPublicStorage(file.nameWithoutExtension + "_metadata.json", jsonContent)
+                
+                file.delete() // Clean up video cache
                 
                 viewModelScope.launch(Dispatchers.Main) {
                     _uiState.value = _uiState.value.copy(isSaving = false, currentMessage = "Saved to Gallery!")
                 }
             } catch (e: Exception) {
                 Log.e("CameraViewModel", "MediaStore save error", e)
+            }
+        }
+    }
+
+    private fun saveJsonToPublicStorage(filename: String, content: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.RELATIVE_PATH, "Movies/ProCamera")
+            }
+            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            uri?.let {
+                context.contentResolver.openOutputStream(it)?.use { os ->
+                    os.write(content.toByteArray())
+                }
             }
         }
     }
