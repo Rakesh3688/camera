@@ -23,22 +23,27 @@ class RecordingEngine {
         this.captureFps = captureFps
         this.playbackFps = playbackFps
         
+        // Match the encoder to the sensor's supported high-speed size
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
+        
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
         format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, playbackFps) // Target playback speed
-        format.setInteger(MediaFormat.KEY_CAPTURE_RATE, captureFps) // Original capture speed
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, playbackFps)
+        format.setInteger(MediaFormat.KEY_CAPTURE_RATE, captureFps)
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
         
-        // STABILITY FIRST: Use Main Profile for 240fps compatibility
+        // STABILITY FIRST: Use Main Profile and matched resolution
         format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileMain)
         format.setInteger(MediaFormat.KEY_MAX_B_FRAMES, 0)
         format.setInteger(MediaFormat.KEY_OPERATING_RATE, 240) 
-        format.setInteger(MediaFormat.KEY_PRIORITY, 0) // Real-time priority
-
+        format.setInteger(MediaFormat.KEY_PRIORITY, 0)
+        
         mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         mediaCodec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        
+        // Hardware Scaling for quality optimization
+        mediaCodec?.setVideoScalingMode(MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT)
         inputSurface = mediaCodec?.createInputSurface()
         mediaCodec?.start()
 
